@@ -107,7 +107,7 @@ pmd_t *mm_find_pmd_custom(struct mm_struct *mm, unsigned long address)
 	if (!pud_present(*pud))
 		goto out;
     if(pud_trans_huge(*pud)) {
-        printk(KERN_ALERT "%s : 2MB page");
+        printk(KERN_ALERT "%s : 2MB page" , printstring);
     }
 	pmd = pmd_offset(pud, address);
 	/*
@@ -212,8 +212,6 @@ static int __init technicalityinside_init(void) {
         printk(KERN_ALERT "%s : Not able to get mm_struct" , printstring);
         return 0;
     }
- //   char *filename = "/home/akash/data/project/code/kernel-modules/proc_file_read1/abc";
-//    sprintf(filename , "/home/akash/data/project/page-splintering/output_files/output_proc_%d" ,pid );
     printk(KERN_ALERT "%s : Started",printstring);
     struct vm_area_struct *vmas = mm->mmap;
     int tries = 0;
@@ -224,9 +222,9 @@ static int __init technicalityinside_init(void) {
             int page_type; 
             unsigned long pfn_value = get_pfn_value(mm , vm_start , &page_type);
             if(pfn_value == 0) {
-                printk(KERN_ALERT "%lx 0 0" , vm_start);
+                printk(KERN_ALERT "READINGS: %lx 0 0" , vm_start);
             } else {
-                printk(KERN_ALERT "%lx %lx %d" , vm_start , pfn_value , page_type);
+                printk(KERN_ALERT "READINGS: %lx %lx %d" , vm_start , pfn_value , page_type);
             }
             if(page_type == 1) {
                 vm_start = vm_start + ((unsigned long)1 << 30);
