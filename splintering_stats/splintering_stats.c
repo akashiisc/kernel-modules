@@ -239,10 +239,6 @@ static int __init technicalityinside_init(void) {
         }
         vmas = vmas->vm_next;
         tries++;
-        if(tries >= 50) {
-            printk(KERN_ALERT "10 tries reached");
-            return 0;
-        }
     }
     return 0;
 }
