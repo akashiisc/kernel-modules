@@ -59,7 +59,7 @@ unsigned long get_pfn_value(struct mm_struct *mm, unsigned long address , int *p
     pud = pud_offset(p4d, address);
     if (!pud_present(*pud))
         goto out;
-    if(pud_trans_huge(*pud)) {
+    if(pud_large(*pud)) {
         *page_type = 1;
         return pud_pfn(*pud);
     }
@@ -70,7 +70,7 @@ unsigned long get_pfn_value(struct mm_struct *mm, unsigned long address , int *p
      * genuine pmde (in which to find pte), test present and !THP together.
      */
     pmde = *pmd;
-    if(pmd_trans_huge(pmde)) {
+    if(pmd_large(pmde)) {
         *page_type = 2;
         return pmd_pfn(*pmd);
     }
@@ -106,7 +106,7 @@ pmd_t *mm_find_pmd_custom(struct mm_struct *mm, unsigned long address)
 	pud = pud_offset(p4d, address);
 	if (!pud_present(*pud))
 		goto out;
-    if(pud_trans_huge(*pud)) {
+    if(pud_large(*pud)) {
         printk(KERN_ALERT "%s : 2MB page" , printstring);
     }
 	pmd = pmd_offset(pud, address);
@@ -117,7 +117,7 @@ pmd_t *mm_find_pmd_custom(struct mm_struct *mm, unsigned long address)
 	 */
 	pmde = *pmd;
 	barrier();
-	if (!pmd_present(pmde) || pmd_trans_huge(pmde))
+	if (!pmd_present(pmde) || pmd_large(pmde))
 		pmd = NULL;
 out:
 	return pmd;
@@ -149,9 +149,9 @@ void file_close(struct file *file)
 
 int file_read(struct file *file, unsigned long long offset, unsigned char *data, unsigned long long size) 
 {
-    //return kernel_read(file , data , size , &offset);
+    return kernel_read(file , data , size , &offset);
         
-    mm_segment_t oldfs;
+    /*mm_segment_t oldfs;
     int ret;
 
     oldfs = get_fs();
@@ -161,7 +161,7 @@ int file_read(struct file *file, unsigned long long offset, unsigned char *data,
 
     set_fs(oldfs);
     return ret;
-
+*/
 }   
 
 
