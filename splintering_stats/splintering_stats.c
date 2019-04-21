@@ -59,7 +59,7 @@ unsigned long get_pfn_value(struct mm_struct *mm, unsigned long address , int *p
     pud = pud_offset(p4d, address);
     if (!pud_present(*pud))
         goto out;
-    if(pud_large(*pud)) {
+    if(pud_large(*pud) || pud_trans_huge(*pud)) {
         *page_type = 1;
         return pud_pfn(*pud);
     }
@@ -70,7 +70,7 @@ unsigned long get_pfn_value(struct mm_struct *mm, unsigned long address , int *p
      * genuine pmde (in which to find pte), test present and !THP together.
      */
     pmde = *pmd;
-    if(pmd_large(pmde)) {
+    if(pmd_large(pmde) || pmd_trans_huge(pmde)) {
         *page_type = 2;
         return pmd_pfn(*pmd);
     }
@@ -106,7 +106,7 @@ pmd_t *mm_find_pmd_custom(struct mm_struct *mm, unsigned long address)
 	pud = pud_offset(p4d, address);
 	if (!pud_present(*pud))
 		goto out;
-    if(pud_large(*pud)) {
+    if(pud_large(*pud) || pud_trans_huge(*pud)) {
         printk(KERN_ALERT "%s : 2MB page" , printstring);
     }
 	pmd = pmd_offset(pud, address);
@@ -117,7 +117,7 @@ pmd_t *mm_find_pmd_custom(struct mm_struct *mm, unsigned long address)
 	 */
 	pmde = *pmd;
 	barrier();
-	if (!pmd_present(pmde) || pmd_large(pmde))
+	if (!pmd_present(pmde) || pmd_large(pmde) || pmd_trans_huge(pmde))
 		pmd = NULL;
 out:
 	return pmd;
