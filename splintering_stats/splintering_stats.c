@@ -15,6 +15,7 @@
 #include <asm/io.h>
 
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/pagemap.h>
 #include <asm/pgtable.h>
 #include <linux/rmap.h>
@@ -107,7 +108,7 @@ pmd_t *mm_find_pmd_custom(struct mm_struct *mm, unsigned long address)
 	if (!pud_present(*pud))
 		goto out;
     if(pud_large(*pud) || pud_trans_huge(*pud)) {
-        printk(KERN_ALERT "%s : 2MB page" , printstring);
+        trace_printk(KERN_ALERT "%s : 2MB page\n" , printstring);
     }
 	pmd = pmd_offset(pud, address);
 	/*
@@ -177,7 +178,7 @@ struct mm_struct* pid_to_mmstruct(int pid)
     if (task == NULL)
         return NULL; // pid has no task_struct
 
-    mm = task->mm;
+    mm = get_task_mm(task);
     return mm;
 }
 
@@ -204,17 +205,18 @@ unsigned long mm_struct_to_cr3(struct mm_struct *mm)
 }
 
 static int __init technicalityinside_init(void) {
-//    printk(KERN_ALERT "Technicality inside : PID : %lld" , pid);
-//    printk(KERN_ALERT "Print String: %s" , printstring);
+//    trace_printk(KERN_ALERT "Technicality inside : PID : %lld" , pid);
+//    trace_printk(KERN_ALERT "Print String: %s" , printstring);
     struct mm_struct *mm = pid_to_mmstruct(pid);
 
     if(mm == NULL) {
-        printk(KERN_ALERT "%s : Not able to get mm_struct" , printstring);
+        trace_printk(KERN_ALERT "%s : Not able to get mm_struct\n" , printstring);
         return 0;
     }
     printk(KERN_ALERT "%s : Started",printstring);
     struct vm_area_struct *vmas = mm->mmap;
     int tries = 0;
+    unsigned long long int printks_times = 0;
     while (vmas != NULL) {
         unsigned long vm_start = vmas->vm_start;		
         unsigned long vm_end = vmas->vm_end;
@@ -222,13 +224,27 @@ static int __init technicalityinside_init(void) {
             int page_type; 
             unsigned long pfn_value = get_pfn_value(mm , vm_start , &page_type);
             if(pfn_value == 0) {
-                printk(KERN_ALERT "READINGS: %lx 0 0" , vm_start);
+                trace_printk( "READINGS: %lx 0 0\n" , vm_start);
+                printks_times++;
             } else {
-                printk(KERN_ALERT "READINGS: %lx %lx %d" , vm_start , pfn_value , page_type);
+                trace_printk( "READINGS: %lx %lx %d\n" , vm_start , pfn_value , page_type);
+                printks_times++;
             }
             if(page_type == 1) {
+                int num_my = 1;
+                while(num_my <= (512*512 -1) ) {
+                    trace_printk( "READINGS: %lx %lx %d\n" , vm_start + ((unsigned long)1 << 12)*num_my , pfn_value + ((unsigned long)1 << 12)*num_my , page_type);
+                    printks_times++;
+                    num_my++;
+                }
                 vm_start = vm_start + ((unsigned long)1 << 30);
             } else if(page_type == 2) {
+                int num_my = 1;
+                while(num_my <= 511) {
+                    trace_printk( "READINGS: %lx %lx %d\n" , vm_start + ((unsigned long)1 << 12)*num_my , pfn_value + ((unsigned long)1 << 12)*num_my , page_type);
+                    printks_times++;
+                    num_my++;
+                }
                 vm_start = vm_start + ((unsigned long)1 << 21);
             } else {
                 vm_start = vm_start + ((unsigned long)1 << 12);
@@ -238,6 +254,7 @@ static int __init technicalityinside_init(void) {
         vmas = vmas->vm_next;
         tries++;
     }
+    trace_printk("VALUE OF NOS OF PRINTK = %llu\n" , printks_times);
     return 0;
 }
 
