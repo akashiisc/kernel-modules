@@ -44,6 +44,7 @@ module_param(filename , charp, 0000);
 
 
 extern struct kvm* get_kvm_ptr(void);
+extern struct kvm* get_kvm_ptr_by_pid(pid_t pid);
 
 struct file *file;
 
@@ -226,9 +227,9 @@ static int __init technicalityinside_init(void) {
 
     //printk(KERN_ALERT "Technicality inside : Blocks in file : %lu" , size_of_file);
     //printk(KERN_ALERT "Technicality inside : Block size : %llu" , blksize);
-    unsigned long long size_of_file = stat->size * 8;
+    unsigned long long size_of_file = stat->size ;
     printk(KERN_ALERT "%s : Size : %llu\n" , printstring , size_of_file);
-    char *data = kmalloc(sizeof (char) * size_of_file, GFP_KERNEL);
+    char *data = kmalloc(sizeof (char) * size_of_file, GFP_ATOMIC);
     if(!data) {
         printk(KERN_ALERT "%s : Allocation Failed\n", printstring);
     } else {
@@ -239,7 +240,7 @@ static int __init technicalityinside_init(void) {
         char *virtual_address_string;
         int previous_pos = 0;
         while(ch != '\0') {
-//            printk(KERN_CONT "%c" , ch);
+    //        printk(KERN_CONT "%c" , ch);
             ch = data[i++];
             if(ch == '\n') {
                 virtual_address_string = kmalloc(sizeof(char) * (i - previous_pos) , GFP_KERNEL);
@@ -248,7 +249,7 @@ static int __init technicalityinside_init(void) {
                 virtual_address_string[i-previous_pos-1] = '\0';
                 kstrtoull(virtual_address_string , 16 , &virtual_address);
                 if(virtual_address != 0) {
-                    printk(KERN_ALERT "READINGS_MAPPING: 0x%llx 0x%llx" , virtual_address , gfn_to_hva( get_kvm_ptr() , virtual_address));
+                    printk(KERN_ALERT "READINGS_MAPPING: %llx %llx" , virtual_address , gfn_to_hva( get_kvm_ptr_by_pid(pid) , virtual_address));
                 }
                 previous_pos = i;
             }
