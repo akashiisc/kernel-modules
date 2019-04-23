@@ -1,0 +1,11 @@
+{
+    "ssh": {
+        "host": "10.192.34.19",
+        "user": "akash",
+        "password": "iamakash",
+        "port": 22
+    },
+    "remote_path": "/home/akash/data/project/page-splintering/remote_stats/",
+    "home_script": "/home/akash/data/kernel-modules/readings_script/load_and_unload_module.sh"
+}
+

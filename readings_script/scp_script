@@ -1,0 +1,15 @@
+#!/usr/bin/expect
+  
+#Usage scp_script <host> <ssh user> "<path_of_remote>" <ssh password>
+
+set timeout 60
+
+spawn scp -r files/ [lindex $argv 1]@[lindex $argv 0]:[lindex $argv 2]
+
+expect "yes/no" {
+    send "yes\r"
+    expect "*?assword" { send "[lindex $argv 3]\r" }
+    } "*?assword" { send "[lindex $argv 3]\r" }
+
+expect "$ " { send "exit\r" }
+
