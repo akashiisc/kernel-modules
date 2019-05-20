@@ -229,7 +229,8 @@ static int __init technicalityinside_init(void) {
     //printk(KERN_ALERT "Technicality inside : Block size : %llu" , blksize);
     unsigned long long size_of_file = stat->size ;
     printk(KERN_ALERT "%s : Size : %llu\n" , printstring , size_of_file);
-    char *data = kmalloc(sizeof (char) * size_of_file, GFP_ATOMIC);
+    char *data = kmalloc(sizeof (char) * size_of_file , GFP_ATOMIC);
+    unsigned long long no_of_vas = 0;
     if(!data) {
         printk(KERN_ALERT "%s : Allocation Failed\n", printstring);
     } else {
@@ -249,13 +250,18 @@ static int __init technicalityinside_init(void) {
                 virtual_address_string[i-previous_pos-1] = '\0';
                 kstrtoull(virtual_address_string , 16 , &virtual_address);
                 if(virtual_address != 0) {
-                    printk(KERN_ALERT "READINGS_MAPPING: %llx %llx" , virtual_address , gfn_to_hva( get_kvm_ptr_by_pid(pid) , virtual_address));
+                    trace_printk("READINGS_MAPPING: %llx %llx\n" , virtual_address , gfn_to_hva( get_kvm_ptr_by_pid(pid) , virtual_address));
+                    no_of_vas++;
                 }
                 previous_pos = i;
             }
         }
+        trace_printk("Total Readings = %llu\n" , no_of_vas);
 //        printk(KERN_ALERT "Technicality inside : Data Read : %s" , data);
+        kfree(data);
     }
+    kfree(stat);
+    kfree(path);
     return 0;
 }
 
