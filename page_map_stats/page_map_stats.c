@@ -136,8 +136,9 @@ static int __init technicalityinside_init(void) {
             } else if (is_file_backed(vma)) {
                 char path_file[1024];
                 path_file[0] = '\0';
-                d_path(&(vma->vm_file->f_path) , path_file , 1024);
-                trace_printk( "READINGS_PAGEMAP: %s %lx %d %lx %lx [file_backed] %s\n" ,(unmovable_page?"KERNEL_PAGE":"USER_PAGE"), pfn , pid_process , vma->vm_start , vma->vm_end , path_file);
+		char *returned_ptr;
+                returned_ptr = d_path(&(vma->vm_file->f_path) , path_file , 1024);
+                trace_printk( "READINGS_PAGEMAP: %s %lx %d %lx %lx [file_backed] %s\n" ,(unmovable_page?"KERNEL_PAGE":"USER_PAGE"), pfn , pid_process , vma->vm_start , vma->vm_end , returned_ptr);
             } else {
                 trace_printk( "READINGS_PAGEMAP: %s %lx %d %lx %lx [pata_nai]\n" , (unmovable_page?"KERNEL_PAGE":"USER_PAGE"), pfn , pid_process , vma->vm_start , vma->vm_end);
             }
