@@ -116,8 +116,12 @@ static int __init technicalityinside_init(void) {
         page_get_anon_vma_p = (void *) kallsyms_lookup_name("page_get_anon_vma");
 
         struct anon_vma *anon_vma = page_get_anon_vma_p(page);
-        pgoff_t pgoff_start, pgoff_end;
-        //   pgoff_start = page_to_pgoff(page);
+	if(anon_vma == NULL) {
+		trace_printk( "READINGS_PAGEMAP: UNKNOWN_PAGE_NO_ANON_VMA %lx\n" , pfn);
+		return;
+	}
+        //pgoff_t pgoff_start, pgoff_end;
+        //pgoff_start = page_to_pgoff(page);
         //    pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
         struct anon_vma_chain *avc;
         anon_vma_interval_tree_iter_first_p = (void *) kallsyms_lookup_name("anon_vma_interval_tree_iter_first");
