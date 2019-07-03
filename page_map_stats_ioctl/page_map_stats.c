@@ -222,7 +222,6 @@ static long etx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         case RD_VALUE:
             copy_to_user((int32_t*) arg, &value, sizeof(value));
             break;
-
     }
     return 0;
 }
