@@ -136,6 +136,17 @@ struct page * get_page_from_pfn(unsigned long pfn) {
 	return pfn_to_page(pfn);
 }
 
+static inline struct address_space *page_mapping_cache(struct page *page)
+{
+	if (!page->mapping || PageAnon(page))
+		return NULL;
+	return page->mapping;
+}
+
+static bool page_is_page_cache(struct page *page) {
+    return (page_mapping_cache(page) != NULL);
+}
+
 
 int do_work(unsigned long pfn) {
 	if(!pfn_valid(pfn)) {
@@ -147,6 +158,10 @@ int do_work(unsigned long pfn) {
 		trace_printk("READINGS_PAGEMAP: NULL_PAGE %lx\n" , pfn);
 		return;
 	}
+    if(page_is_page_cache(page)) {
+        trace_printk("READINGS_PAGEMAP: PAGE_CACHE_PAGE %lx\n" , pfn);
+        return;
+    }
 	void* virtual = NULL;
 	virtual = page_address(page);
 	bool free_page = false;
