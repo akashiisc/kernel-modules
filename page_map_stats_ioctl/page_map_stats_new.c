@@ -145,10 +145,16 @@ static inline struct address_space *page_mapping_cache(struct page *page)
 }
 
 static bool page_is_page_cache(struct page *page) {
-    return (page_mapping_cache(page) != NULL);
+	return (page_mapping_cache(page) != NULL);
 }
 
 enum page_type_val {TYPE_NONE , TYPE_STACK , TYPE_HEAP , TYPE_CODE , TYPE_DATA , TYPE_FILE};
+
+struct kernel_page_flags {
+	uint64_t x;
+	uint64_t r;
+	uint64_t w;
+};
 
 struct page_flags_values {
 	bool mmap;
@@ -165,12 +171,15 @@ struct page_flags_values {
 	int num_anon_vma;
 	bool unmovable_page;
 	pid_t pid;
+	uint64_t virtual_address;
+	struct kernel_page_flags kpf;
 };
 
 struct page_details {
-        unsigned long pfn_value;
-        struct page_flags_values pf;
+	unsigned long pfn_value;
+	struct page_flags_values pf;
 };
+
 
 void set_default_values(struct page_flags_values *pf) {
 	pf->mmap = 0;
@@ -184,6 +193,67 @@ void set_default_values(struct page_flags_values *pf) {
 	pf->page_type = TYPE_NONE;
 	pf->num_anon_vma = 0;
 	pf->unmovable_page = 0;
+	pf->virtual_address = 0;
+}
+
+pteval_t get_pte_value(struct mm_struct *mm, unsigned long address) {
+    pgd_t *pgd;
+    p4d_t *p4d;
+    pud_t *pud;
+    pmd_t *pmd = NULL;
+    pmd_t pmde;
+    pte_t *ptep , pte;
+
+    pgd = pgd_offset(mm, address);
+    if (!pgd_present(*pgd))
+        goto out;
+    p4d = p4d_offset(pgd, address);
+    if (!p4d_present(*p4d))
+        goto out;
+
+    pud = pud_offset(p4d, address);
+    if (!pud_present(*pud))
+        goto out;
+    if(pud_large(*pud) || pud_trans_huge(*pud)) {
+        return pud->pud;
+    }
+    pmd = pmd_offset(pud, address);
+    /*
+     * Some THP functions use the sequence pmdp_huge_clear_flush(), set_pmd_at()
+     * without holding anon_vma lock for write.  So when looking for a
+     * genuine pmde (in which to find pte), test present and !THP together.
+     */
+    pmde = *pmd;
+    if(pmd_large(pmde) || pmd_trans_huge(pmde)) {
+        return pmd->pmd;
+    }
+    if(pmd_present(pmde)) {
+        ptep = pte_offset_kernel(pmd, address);
+        if(pte_present(*ptep)) {
+            pte = *ptep;
+            return pte.pte;
+        }
+        return pte.pte;
+    }
+out:
+    return 0;
+}
+
+
+struct kernel_page_flags get_kernel_page_flags(uint64_t address) {
+	struct kernel_page_flags kpf;
+	struct task_struct *ts = current;
+	struct mm_struct *mm = ts->mm;
+	//uint64_t virtual_address = 0xffff8e48b0ff5000;
+	pteval_t pte  = get_pte_value(mm , address);
+	pte_t ptett1;
+	ptett1.pte = pte;
+	kpf.w =  pte_write(ptett1);
+	kpf.x = pte_exec(ptett1);
+	int z = _AT( pteval_t, pte_flags(ptett1)) & (_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED | _PAGE_NX );
+	int w = (_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED | _PAGE_NX);
+	kpf.x = z==w;
+	return kpf;
 }
 
 struct page_flags_values do_work(unsigned long pfn) {
@@ -214,20 +284,25 @@ struct page_flags_values do_work(unsigned long pfn) {
 		//physical_page_details 	
 		if(!PageLRU(ppage)) {
 			pf.unmovable_page = 1;
+			pf.virtual_address = (uint64_t)page_to_virt(ppage);
+			if(pf.virtual_address != 0) {
+				struct kernel_page_flags kpf = get_kernel_page_flags(pf.virtual_address);
+				pf.kpf = kpf;
+			}
 			/*
-			if(__PageMovable(ppage) && !PageIsolated(ppage)) {
-				//This has to be a movable page.
+			   if(__PageMovable(ppage) && !PageIsolated(ppage)) {
+			//This has to be a movable page.
 			}
 			else {
-				//This has to be an unmovable page.
-				pf.unmovable_page = 1;
+			//This has to be an unmovable page.
+			pf.unmovable_page = 1;
 			}
 			*/
-	        }
+		}
 		page_get_anon_vma_p = (void *) kallsyms_lookup_name("page_get_anon_vma");
 		struct anon_vma *avma = page_get_anon_vma_p(ppage);
 		if(PageAnon(ppage) && avma != NULL) {
-                        //printk(KERN_ALERT "READINGS_PAGEMAP: UNKNOWN_PAGE_NO_ANON_VMA %lx\n" , pfn);
+			//printk(KERN_ALERT "READINGS_PAGEMAP: UNKNOWN_PAGE_NO_ANON_VMA %lx\n" , pfn);
 			pgoff_t pgoff_start, pgoff_end;
 			//   pgoff_start = page_to_pgoff(page);
 			//    pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
@@ -268,86 +343,86 @@ struct page_flags_values do_work(unsigned long pfn) {
 				}
 
 			}
-                } else if (PageAnon(ppage) && avma == NULL) {
-			pf.no_anon_vma = 1;
+			} else if (PageAnon(ppage) && avma == NULL) {
+				pf.no_anon_vma = 1;
+			}
+			return pf;
 		}
-		return pf;
-	}
-}
-
-
-int evts_push_str(struct page_details *arg , struct page_details *kernel_a) {
-	 copy_to_user(arg->pf.file_name , kernel_a->pf.file_name, 1024 * sizeof(char));
-}
-
-static long etx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	unsigned long pfn_value;
-	struct page_details pd;
-	switch(cmd) {
-		case PAGE_MAP_STATS:
-			copy_from_user(&pd ,(unsigned long*) arg, sizeof(struct page_details));
-			struct page_flags_values pf = do_work(pd.pfn_value);
-			pd.pf = pf;
-			copy_to_user((struct page_details*) arg, &pd, sizeof(pd));
-			evts_push_str((struct page_details*)arg , &pd);
-			//copy_to_user((char *) ((struct page_details*)arg)->pf.path_file , pd.pf.path_file , sizeof(pd.pf.path_file));
-			break;
-		case RD_VALUE:
-			copy_to_user((int32_t*) arg, &value, sizeof(value));
-			break;
-	}
-	return 0;
-}
-
-static int __init etx_driver_init(void)
-{
-	/*Allocating Major number*/
-	if((alloc_chrdev_region(&dev, 0, 1, "etx_Dev")) <0){
-		printk(KERN_INFO "Cannot allocate major number\n");
-		return -1;
-	}
-	printk(KERN_INFO "Major = %d Minor = %d \n",MAJOR(dev), MINOR(dev));
-
-	/*Creating cdev structure*/
-	cdev_init(&etx_cdev,&fops);
-
-	/*Adding character device to the system*/
-	if((cdev_add(&etx_cdev,dev,1)) < 0){
-		printk(KERN_INFO "Cannot add the device to the system\n");
-		goto r_class;
 	}
 
-	/*Creating struct class*/
-	if((dev_class = class_create(THIS_MODULE,"etx_class")) == NULL){
-		printk(KERN_INFO "Cannot create the struct class\n");
-		goto r_class;
+
+	int evts_push_str(struct page_details *arg , struct page_details *kernel_a) {
+		copy_to_user(arg->pf.file_name , kernel_a->pf.file_name, 1024 * sizeof(char));
 	}
 
-	/*Creating device*/
-	if((device_create(dev_class,NULL,dev,NULL,"page_map_stats_device")) == NULL){
-		printk(KERN_INFO "Cannot create the Device 1\n");
-		goto r_device;
+	static long etx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+	{
+		unsigned long pfn_value;
+		struct page_details pd;
+		switch(cmd) {
+			case PAGE_MAP_STATS:
+				copy_from_user(&pd ,(unsigned long*) arg, sizeof(struct page_details));
+				struct page_flags_values pf = do_work(pd.pfn_value);
+				pd.pf = pf;
+				copy_to_user((struct page_details*) arg, &pd, sizeof(pd));
+				evts_push_str((struct page_details*)arg , &pd);
+				//copy_to_user((char *) ((struct page_details*)arg)->pf.path_file , pd.pf.path_file , sizeof(pd.pf.path_file));
+				break;
+			case RD_VALUE:
+				copy_to_user((int32_t*) arg, &value, sizeof(value));
+				break;
+		}
+		return 0;
 	}
-	printk(KERN_INFO "Device Driver Insert...Done!!!\n");
-	return 0;
+
+	static int __init etx_driver_init(void)
+	{
+		/*Allocating Major number*/
+		if((alloc_chrdev_region(&dev, 0, 1, "etx_Dev")) <0){
+			printk(KERN_INFO "Cannot allocate major number\n");
+			return -1;
+		}
+		printk(KERN_INFO "Major = %d Minor = %d \n",MAJOR(dev), MINOR(dev));
+
+		/*Creating cdev structure*/
+		cdev_init(&etx_cdev,&fops);
+
+		/*Adding character device to the system*/
+		if((cdev_add(&etx_cdev,dev,1)) < 0){
+			printk(KERN_INFO "Cannot add the device to the system\n");
+			goto r_class;
+		}
+
+		/*Creating struct class*/
+		if((dev_class = class_create(THIS_MODULE,"etx_class")) == NULL){
+			printk(KERN_INFO "Cannot create the struct class\n");
+			goto r_class;
+		}
+
+		/*Creating device*/
+		if((device_create(dev_class,NULL,dev,NULL,"page_map_stats_device")) == NULL){
+			printk(KERN_INFO "Cannot create the Device 1\n");
+			goto r_device;
+		}
+		printk(KERN_INFO "Device Driver Insert...Done!!!\n");
+		return 0;
 
 r_device:
-	class_destroy(dev_class);
+		class_destroy(dev_class);
 r_class:
-	unregister_chrdev_region(dev,1);
-	return -1;
-}
+		unregister_chrdev_region(dev,1);
+		return -1;
+	}
 
-void __exit etx_driver_exit(void)
-{
-	device_destroy(dev_class,dev);
-	class_destroy(dev_class);
-	cdev_del(&etx_cdev);
-	unregister_chrdev_region(dev, 1);
-	printk(KERN_INFO "Device Driver Remove...Done!!!\n");
-}
+	void __exit etx_driver_exit(void)
+	{
+		device_destroy(dev_class,dev);
+		class_destroy(dev_class);
+		cdev_del(&etx_cdev);
+		unregister_chrdev_region(dev, 1);
+		printk(KERN_INFO "Device Driver Remove...Done!!!\n");
+	}
 
-module_init(etx_driver_init);
-module_exit(etx_driver_exit);
+	module_init(etx_driver_init);
+	module_exit(etx_driver_exit);
 
