@@ -261,7 +261,7 @@ struct page_flags_values do_work(unsigned long pfn) {
 	struct page_flags_values pf;
 	set_default_values(&pf);
 
-	printk("Entered......");
+	//printk("Entered......");
 	if(pfn_valid(pfn)) {
 		ppage = pfn_to_page(pfn);
 	} else {
