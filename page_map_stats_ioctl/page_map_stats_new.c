@@ -197,46 +197,46 @@ void set_default_values(struct page_flags_values *pf) {
 }
 
 pteval_t get_pte_value(struct mm_struct *mm, unsigned long address) {
-    pgd_t *pgd;
-    p4d_t *p4d;
-    pud_t *pud;
-    pmd_t *pmd = NULL;
-    pmd_t pmde;
-    pte_t *ptep , pte;
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd = NULL;
+	pmd_t pmde;
+	pte_t *ptep , pte;
 
-    pgd = pgd_offset(mm, address);
-    if (!pgd_present(*pgd))
-        goto out;
-    p4d = p4d_offset(pgd, address);
-    if (!p4d_present(*p4d))
-        goto out;
+	pgd = pgd_offset(mm, address);
+	if (!pgd_present(*pgd))
+		goto out;
+	p4d = p4d_offset(pgd, address);
+	if (!p4d_present(*p4d))
+		goto out;
 
-    pud = pud_offset(p4d, address);
-    if (!pud_present(*pud))
-        goto out;
-    if(pud_large(*pud) || pud_trans_huge(*pud)) {
-        return pud->pud;
-    }
-    pmd = pmd_offset(pud, address);
-    /*
-     * Some THP functions use the sequence pmdp_huge_clear_flush(), set_pmd_at()
-     * without holding anon_vma lock for write.  So when looking for a
-     * genuine pmde (in which to find pte), test present and !THP together.
-     */
-    pmde = *pmd;
-    if(pmd_large(pmde) || pmd_trans_huge(pmde)) {
-        return pmd->pmd;
-    }
-    if(pmd_present(pmde)) {
-        ptep = pte_offset_kernel(pmd, address);
-        if(pte_present(*ptep)) {
-            pte = *ptep;
-            return pte.pte;
-        }
-        return pte.pte;
-    }
+	pud = pud_offset(p4d, address);
+	if (!pud_present(*pud))
+		goto out;
+	if(pud_large(*pud) || pud_trans_huge(*pud)) {
+		return pud->pud;
+	}
+	pmd = pmd_offset(pud, address);
+	/*
+	 * Some THP functions use the sequence pmdp_huge_clear_flush(), set_pmd_at()
+	 * without holding anon_vma lock for write.  So when looking for a
+	 * genuine pmde (in which to find pte), test present and !THP together.
+	 */
+	pmde = *pmd;
+	if(pmd_large(pmde) || pmd_trans_huge(pmde)) {
+		return pmd->pmd;
+	}
+	if(pmd_present(pmde)) {
+		ptep = pte_offset_kernel(pmd, address);
+		if(pte_present(*ptep)) {
+			pte = *ptep;
+			return pte.pte;
+		}
+		return pte.pte;
+	}
 out:
-    return 0;
+	return 0;
 }
 
 
@@ -349,8 +349,6 @@ struct page_flags_values do_work(unsigned long pfn) {
 			return pf;
 		}
 	}
-
-
 	int evts_push_str(struct page_details *arg , struct page_details *kernel_a) {
 		copy_to_user(arg->pf.file_name , kernel_a->pf.file_name, 1024 * sizeof(char));
 	}

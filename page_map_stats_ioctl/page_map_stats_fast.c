@@ -173,6 +173,7 @@ struct page_flags_values {
 	pid_t pid;
 	uint64_t virtual_address;
 	struct kernel_page_flags kpf;
+	unsigned long inode_no;
 };
 
 struct page_details {
@@ -281,6 +282,8 @@ struct page_flags_values do_work(unsigned long pfn) {
 		}
 		if(page_is_page_cache(ppage)) {
 			pf.page_cache = 1;
+			struct address_space *aspace = page_mapping_cache(ppage);
+                        pf.inode_no = aspace->host->i_ino;
 			//printk(KERN_ALERT "READINGS_PAGEMAP: PAGE_CACHE %lx\n" , pfn);
 		}
 		//physical_page_details 	
