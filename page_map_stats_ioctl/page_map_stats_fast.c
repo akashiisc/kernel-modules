@@ -141,7 +141,8 @@ static inline struct address_space *page_mapping_cache(struct page *page)
 {
 	if (!page->mapping || PageAnon(page))
 		return NULL;
-	return page->mapping;
+	//return page->mapping;
+	return page_mapping(page);
 }
 
 static bool page_is_page_cache(struct page *page) {
@@ -195,6 +196,7 @@ void set_default_values(struct page_flags_values *pf) {
 	pf->num_anon_vma = 0;
 	pf->unmovable_page = 0;
 	pf->virtual_address = 0;
+	pf->inode_no = 0;
 }
 
 pteval_t get_pte_value(struct mm_struct *mm, unsigned long address) {
@@ -269,7 +271,7 @@ struct page_flags_values do_work(unsigned long pfn) {
 		ppage = NULL;
 	}
 	if(ppage == NULL) {
-		//printk(KERN_ALERT "No physical page\n")	;
+		printk(KERN_ALERT "No physical page\n")	;
 	} else {
 		//printk(KERN_ALERT "Physical page\n");
 		unsigned long k = ppage->flags;
@@ -283,7 +285,7 @@ struct page_flags_values do_work(unsigned long pfn) {
 		if(page_is_page_cache(ppage)) {
 			pf.page_cache = 1;
 			struct address_space *aspace = page_mapping_cache(ppage);
-                        pf.inode_no = aspace->host->i_ino;
+	                pf.inode_no = aspace->host->i_ino;
 			//printk(KERN_ALERT "READINGS_PAGEMAP: PAGE_CACHE %lx\n" , pfn);
 		}
 		//physical_page_details 	
@@ -306,7 +308,9 @@ static long etx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch(cmd) {
 		case PAGE_MAP_STATS_FAST:
 			copy_from_user(&pd ,(unsigned long*) arg, sizeof(struct page_details));
+			printk(KERN_ALERT "do_work called\n");
 			struct page_flags_values pf = do_work(pd.pfn_value);
+			printk(KERN_ALERT "do_work finished\n");
 			pd.pf = pf;
 			copy_to_user((struct page_details*) arg, &pd, sizeof(pd));
 			evts_push_str((struct page_details*)arg , &pd);
